@@ -52,7 +52,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/joncrlsn/dque v0.0.0-20241024143830-7723fd131a64
 	github.com/json-iterator/go v1.1.12
-	github.com/klauspost/compress v1.19.2
+	github.com/klauspost/compress v1.20.0
 	github.com/klauspost/pgzip v1.2.6
 	github.com/mattn/go-ieproxy v0.0.12
 	github.com/minio/minio-go/v7 v7.3.0
@@ -149,6 +149,7 @@ require (
 )
 
 require (
+	github.com/containerd/log/otel v0.1.0 // indirect
 	github.com/containerd/ttrpc v1.2.9 // indirect
 	github.com/dlclark/regexp2/v2 v2.8.0 // indirect
 	github.com/go-openapi/swag/pools v0.29.2 // indirect
@@ -192,7 +193,7 @@ require (
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
-	github.com/containerd/containerd/v2 v2.3.5 // indirect
+	github.com/containerd/containerd/v2 v2.4.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/ebitengine/purego v0.11.0 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.39.0 // indirect
@@ -331,7 +332,7 @@ require (
 	github.com/bboreham/go-loser v0.0.0-20230920113527-fcc2c21820a3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
-	github.com/containerd/log v0.1.0 // indirect
+	github.com/containerd/log v0.2.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
 	github.com/dennwc/varint v1.0.0
