@@ -427,12 +427,15 @@ func parseEntry(entry push.Entry, lbls *logql_log.LabelsBuilder) (map[string][]s
 		}
 	}
 
-	lblBuilder.LabelsResult().Parsed().Range(func(lbl labels.Label) {
+	// Read the parsed labels off the builder rather than through LabelsResult: that cache is keyed
+	// by label hash and shared across streams, so a line whose stream and parsed labels together
+	// match another stream's labels gets that stream's entry back, which has no parsed labels.
+	for _, lbl := range lblBuilder.UnsortedLabels(nil, logql_log.ParsedLabel) {
 		if isErrorLabelName(lbl.Name) {
-			return
+			continue
 		}
 		result[lbl.Name] = appendUnique(result[lbl.Name], lbl.Value)
-	})
+	}
 
 	return result, []string{parser}
 }

@@ -984,6 +984,28 @@ func Test_parseDetectedFields_reusedBuilderDoesNotLeakJSONPaths(t *testing.T) {
 		"user_id came from the second line, which has no user.id JSON path")
 }
 
+// Test_parseDetectedFields_parsedFieldsCollidingWithAnotherStream covers the label builder's result
+// cache, which is shared by every stream in the request now that one builder serves them all. The
+// second stream's line parses into the exact label set of the first stream, whose cached entry
+// holds no parsed labels.
+func Test_parseDetectedFields_parsedFieldsCollidingWithAnotherStream(t *testing.T) {
+	now := time.Now()
+	streams := logqlmodel.Streams{
+		push.Stream{
+			Labels:  `{service_name="test", level="info"}`,
+			Entries: []push.Entry{{Timestamp: now, Line: `msg="hello"`}},
+		},
+		push.Stream{
+			Labels:  `{service_name="test"}`,
+			Entries: []push.Entry{{Timestamp: now.Add(time.Millisecond), Line: `level=info`}},
+		},
+	}
+
+	df := parseDetectedFields(1000, streams)
+
+	require.Contains(t, df, "level", "level was parsed out of the second stream's line")
+}
+
 func Test_getStructuredMetadata_dedupesValues(t *testing.T) {
 	got := getStructuredMetadata(push.Entry{
 		StructuredMetadata: []push.LabelAdapter{
