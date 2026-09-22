@@ -886,6 +886,152 @@ func Test_parseDetectedFields(t *testing.T) {
 	})
 }
 
+// detectedFieldsFixture builds a response shaped like the ones the query frontend actually parses
+// for /detected_fields: a handful of streams, each carrying many logfmt lines with structured
+// metadata.
+func detectedFieldsFixture(nStreams, nEntries int) logqlmodel.Streams {
+	streams := make(logqlmodel.Streams, 0, nStreams)
+	now := time.Now()
+
+	for s := 0; s < nStreams; s++ {
+		entries := make([]push.Entry, 0, nEntries)
+		for e := 0; e < nEntries; e++ {
+			entries = append(entries, push.Entry{
+				Timestamp: now.Add(time.Duration(e) * time.Millisecond),
+				Line: fmt.Sprintf(
+					`level=info ts=2024-09-05T15:36:38.757788067Z caller=metrics.go:%d org_id=%d traceID=%x latency=fast duration=%dms status=200 lines=%d bytes=%dMB msg="query stats"`,
+					100+e%50, e%97, e, e%1000, e, e%64,
+				),
+				StructuredMetadata: []push.LabelAdapter{
+					{Name: "detected_level", Value: "info"},
+					{Name: "pod", Value: fmt.Sprintf("querier-%d", s)},
+				},
+			})
+		}
+
+		streams = append(streams, push.Stream{
+			Labels:  fmt.Sprintf(`{cluster="us-east-1", namespace="loki-prod", pod="querier-%d", service_name="querier"}`, s),
+			Entries: entries,
+		})
+	}
+
+	return streams
+}
+
+// Test_parseDetectedFields_allocationBudget guards the per-line cost of the detected-fields path.
+// It used to build a fresh label builder, and a map per label, for every single log line, so a
+// request at the default line limit churned tens of megabytes and OOM-restarted the process it ran
+// in. The budget is generous on purpose: it is there to catch a return to per-line allocation, not
+// to pin an exact figure.
+func Test_parseDetectedFields_allocationBudget(t *testing.T) {
+	const (
+		nStreams = 10
+		nEntries = 200
+		// Well above what the current code needs, and well below the ~29MB the per-line
+		// label builder cost before.
+		budget = 20 << 20
+	)
+
+	streams := detectedFieldsFixture(nStreams, nEntries)
+
+	runtime.GC()
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	df := parseDetectedFields(1000, streams)
+	require.NotEmpty(t, df)
+
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+	runtime.KeepAlive(df)
+
+	allocated := after.TotalAlloc - before.TotalAlloc
+	lines := nStreams * nEntries
+	t.Logf("parsed %d lines, allocated %.2f MiB (%d bytes/line)",
+		lines, float64(allocated)/(1<<20), allocated/uint64(lines))
+
+	require.Lessf(t, allocated, uint64(budget),
+		"parsing %d log lines allocated %.2f MiB, over the %d MiB budget: the detected-fields path is allocating per log line again",
+		lines, float64(allocated)/(1<<20), budget>>20)
+}
+
+// Test_parseDetectedFields_reusedBuilderDoesNotLeakJSONPaths covers the state that has to be
+// cleared between lines now that one label builder serves the whole request. The second line parses
+// as JSON but does not carry user_id itself, so user_id must not inherit the first line's path.
+func Test_parseDetectedFields_reusedBuilderDoesNotLeakJSONPaths(t *testing.T) {
+	now := time.Now()
+	stream := push.Stream{
+		Labels: `{service_name="test"}`,
+		Entries: []push.Entry{
+			{
+				Timestamp: now,
+				Line:      `{"user":{"id":"123"}}`,
+			},
+			{
+				Timestamp: now.Add(time.Millisecond),
+				Line:      `{"unrelated":"value"}`,
+				// Already extracted upstream, so it reaches parseEntry through Parsed
+				// rather than from this line's JSON.
+				Parsed: []push.LabelAdapter{{Name: "user_id", Value: "456"}},
+			},
+		},
+	}
+
+	df := parseDetectedFields(1000, logqlmodel.Streams{stream})
+
+	require.Contains(t, df, "user_id")
+	require.Nil(t, df["user_id"].jsonPath,
+		"user_id came from the second line, which has no user.id JSON path")
+}
+
+func Test_getStructuredMetadata_dedupesValues(t *testing.T) {
+	got := getStructuredMetadata(push.Entry{
+		StructuredMetadata: []push.LabelAdapter{
+			{Name: "pod", Value: "a"},
+			{Name: "pod", Value: "a"},
+			{Name: "pod", Value: "b"},
+			{Name: "level", Value: "info"},
+		},
+	})
+
+	require.Equal(t, map[string][]string{
+		"pod":   {"a", "b"},
+		"level": {"info"},
+	}, got)
+}
+
+func Test_getParsedLabels_dedupesValues(t *testing.T) {
+	got := getParsedLabels(push.Entry{
+		Parsed: []push.LabelAdapter{
+			{Name: "status", Value: "200"},
+			{Name: "status", Value: "200"},
+			{Name: "status", Value: "500"},
+		},
+	})
+
+	require.Equal(t, map[string][]string{"status": {"200", "500"}}, got)
+}
+
+func BenchmarkParseDetectedFields(b *testing.B) {
+	for _, tc := range []struct {
+		nStreams, nEntries int
+	}{
+		{1, 1000},
+		{10, 100},
+		{50, 100},
+	} {
+		streams := detectedFieldsFixture(tc.nStreams, tc.nEntries)
+		b.Run(fmt.Sprintf("streams=%d/entries=%d", tc.nStreams, tc.nEntries), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if got := parseDetectedFields(1000, streams); len(got) == 0 {
+					b.Fatal("no detected fields")
+				}
+			}
+		})
+	}
+}
+
 func mockLogfmtStreamWithLabels(_ int, quantity int, lbls string) logproto.Stream {
 	entries := make([]logproto.Entry, 0, quantity)
 	streamLabels, err := syntax.ParseLabels(lbls)
