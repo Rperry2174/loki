@@ -1,0 +1,23 @@
+File: queryrange.test
+Build ID: bbe7a4191cf988defca5607cce5f1740a68bf53a
+Type: alloc_space
+Time: 2026-09-22 02:10:09 UTC
+Showing nodes accounting for 4.58GB, 96.41% of 4.75GB total
+Dropped 73 nodes (cum <= 0.02GB)
+Showing top 15 nodes out of 33
+      flat  flat%   sum%        cum   cum%
+    0.98GB 20.54% 20.54%     1.15GB 24.28%  strconv.syntaxError
+    0.75GB 15.85% 36.38%     1.58GB 33.25%  github.com/grafana/loki/v3/pkg/logql/log.(*LabelsBuilder).LabelsResult
+    0.65GB 13.59% 49.97%     0.75GB 15.85%  github.com/grafana/loki/v3/pkg/querier/queryrange.parseEntry.func1
+    0.45GB  9.52% 59.49%     0.53GB 11.06%  github.com/grafana/loki/v3/pkg/logql/log.internedStringSet.Get (inline)
+    0.31GB  6.53% 66.02%     0.31GB  6.53%  github.com/grafana/loki/v3/pkg/logql/log.(*LabelsBuilder).UnsortedLabels
+    0.30GB  6.30% 72.33%     0.30GB  6.30%  github.com/prometheus/prometheus/model/labels.New
+    0.21GB  4.51% 76.84%     0.22GB  4.58%  time.ParseDuration
+    0.18GB  3.74% 80.58%     0.18GB  3.74%  internal/stringslite.Clone (inline)
+    0.18GB  3.69% 84.28%     0.18GB  3.69%  bytes.(*Buffer).String (inline)
+    0.16GB  3.29% 87.57%     3.17GB 66.86%  github.com/grafana/loki/v3/pkg/querier/queryrange.parseEntry
+    0.13GB  2.75% 90.31%     0.13GB  2.75%  github.com/grafana/loki/v3/pkg/querier/queryrange.appendUnique (inline)
+    0.10GB  2.13% 92.44%     0.10GB  2.14%  github.com/grafana/loki/v3/pkg/logql/log.(*BaseLabelsBuilder).ForLabels
+    0.07GB  1.54% 93.99%     0.07GB  1.54%  github.com/grafana/loki/v3/pkg/logql/log.(*LogfmtParser).Process.func1 (inline)
+    0.07GB  1.43% 95.41%     0.07GB  1.43%  github.com/grafana/loki/v3/pkg/logql/log.NewJSONParser (inline)
+    0.05GB     1% 96.41%     0.57GB 12.06%  github.com/grafana/loki/v3/pkg/logql/log.(*LogfmtParser).Process

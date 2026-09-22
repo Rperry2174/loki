@@ -50,6 +50,18 @@ func TestLabelsBuilder_Get(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestLabelsBuilder_ResetClearsJSONPaths(t *testing.T) {
+	lbs := labels.FromStrings("already", "in")
+	b := NewBaseLabelsBuilder().ForLabels(lbs, labels.StableHash(lbs))
+
+	b.SetJSONPath("user_id", []string{"user", "id"})
+	require.Equal(t, []string{"user", "id"}, b.GetJSONPath("user_id"))
+
+	b.Reset()
+	require.Nil(t, b.GetJSONPath("user_id"),
+		"a JSON path from a previous line must not be reported for the next one")
+}
+
 func TestLabelsBuilder_LabelsError(t *testing.T) {
 	lbs := labels.FromStrings("already", "in")
 	b := NewBaseLabelsBuilder().ForLabels(lbs, labels.StableHash(lbs))

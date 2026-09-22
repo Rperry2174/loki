@@ -133,11 +133,15 @@ var allowedBytesUnits = bytesUnit{
 
 func parseDetectedFieldValues(limit uint32, streams []push.Stream, name string) []string {
 	values := map[string]struct{}{}
+	// One builder for the whole request: it is reset per line, and its result cache is shared, so
+	// allocations scale with the number of streams instead of the number of lines.
+	builder := logql_log.NewBaseLabelsBuilder()
 	for _, stream := range streams {
 		streamLbls, err := syntax.ParseLabels(stream.Labels)
 		if err != nil {
 			streamLbls = labels.EmptyLabels()
 		}
+		streamHash := labels.StableHash(streamLbls)
 
 		for _, entry := range stream.Entries {
 			if len(values) >= int(limit) {
@@ -151,7 +155,8 @@ func parseDetectedFieldValues(limit uint32, streams []push.Stream, name string) 
 				}
 			}
 
-			entryLbls := logql_log.NewBaseLabelsBuilder().ForLabels(streamLbls, labels.StableHash(streamLbls))
+			builder.Reset()
+			entryLbls := builder.ForLabels(streamLbls, streamHash)
 			parsedLabels, _ := parseEntry(entry, entryLbls)
 			if vals, ok := parsedLabels[name]; ok {
 				for _, v := range vals {
@@ -284,12 +289,16 @@ func parseDetectedFields(limit uint32, streams logqlmodel.Streams) map[string]*p
 	detectedFields := make(map[string]*parsedFields, min(maxDetectedFieldsPreAlloc, limit))
 	fieldCount := uint32(0)
 	emtpyparsers := []string{}
+	// One builder for the whole request: it is reset per line, and its result cache is shared, so
+	// allocations scale with the number of streams instead of the number of lines.
+	builder := logql_log.NewBaseLabelsBuilder()
 
 	for _, stream := range streams {
 		streamLbls, err := syntax.ParseLabels(stream.Labels)
 		if err != nil {
 			streamLbls = labels.EmptyLabels()
 		}
+		streamHash := labels.StableHash(streamLbls)
 
 		for _, entry := range stream.Entries {
 			structuredMetadata := getStructuredMetadata(entry)
@@ -318,7 +327,8 @@ func parseDetectedFields(limit uint32, streams logqlmodel.Streams) map[string]*p
 				}
 			}
 
-			entryLbls := logql_log.NewBaseLabelsBuilder().ForLabels(streamLbls, labels.StableHash(streamLbls))
+			builder.Reset()
+			entryLbls := builder.ForLabels(streamLbls, streamHash)
 			parsedLabels, parsers := parseEntry(entry, entryLbls)
 			for k, vals := range parsedLabels {
 				df, ok := detectedFields[k]
@@ -363,25 +373,22 @@ func parseDetectedFields(limit uint32, streams logqlmodel.Streams) map[string]*p
 }
 
 func getStructuredMetadata(entry push.Entry) map[string][]string {
-	labels := map[string]map[string]struct{}{}
+	result := make(map[string][]string, len(entry.StructuredMetadata))
 	for _, lbl := range entry.StructuredMetadata {
-		if values, ok := labels[lbl.Name]; ok {
-			values[lbl.Value] = struct{}{}
-		} else {
-			labels[lbl.Name] = map[string]struct{}{lbl.Value: {}}
-		}
-	}
-
-	result := make(map[string][]string, len(labels))
-	for lbl, values := range labels {
-		vals := make([]string, 0, len(values))
-		for v := range values {
-			vals = append(vals, v)
-		}
-		result[lbl] = vals
+		result[lbl.Name] = appendUnique(result[lbl.Name], lbl.Value)
 	}
 
 	return result
+}
+
+// appendUnique adds value to values unless it is already there. A label carries one or two values
+// per log line, so a linear scan beats the map-per-label this replaces: the map allocations
+// dominated the detected-fields path, which runs over every line of a response.
+func appendUnique(values []string, value string) []string {
+	if slices.Contains(values, value) {
+		return values
+	}
+	return append(values, value)
 }
 
 func parseEntry(entry push.Entry, lbls *logql_log.LabelsBuilder) (map[string][]string, []string) {
@@ -395,87 +402,53 @@ func parseEntry(entry push.Entry, lbls *logql_log.LabelsBuilder) (map[string][]s
 	streamLbls := lbls.LabelsResult().Stream()
 	lblBuilder := lbls.ForLabels(streamLbls, labels.StableHash(streamLbls))
 
-	parsed := make(map[string][]string, len(origParsed))
+	result := make(map[string][]string, len(origParsed))
 	for lbl, values := range origParsed {
-		if lbl == logqlmodel.ErrorLabel || lbl == logqlmodel.ErrorDetailsLabel ||
-			lbl == logqlmodel.PreserveErrorLabel {
+		if isErrorLabelName(lbl) {
 			continue
 		}
 
-		parsed[lbl] = values
+		result[lbl] = values
 	}
 
-	line := entry.Line
+	// The line is converted once and shared by both parser attempts.
+	line := []byte(entry.Line)
 	parser := "json"
 	jsonParser := logql_log.NewJSONParser(true)
-	_, jsonSuccess := jsonParser.Process(0, []byte(line), lblBuilder)
+	_, jsonSuccess := jsonParser.Process(0, line, lblBuilder)
 	if !jsonSuccess || lblBuilder.HasErr() {
 		lblBuilder.Reset()
 
 		logFmtParser := logql_log.NewLogfmtParser(false, false)
 		parser = "logfmt"
-		_, logfmtSuccess := logFmtParser.Process(0, []byte(line), lblBuilder)
+		_, logfmtSuccess := logFmtParser.Process(0, line, lblBuilder)
 		if !logfmtSuccess || lblBuilder.HasErr() {
-			return parsed, nil
+			return result, nil
 		}
 	}
 
-	parsedLabels := map[string]map[string]struct{}{}
-	for lbl, values := range parsed {
-		if vals, ok := parsedLabels[lbl]; ok {
-			for _, value := range values {
-				vals[value] = struct{}{}
-			}
-		} else {
-			parsedLabels[lbl] = map[string]struct{}{}
-			for _, value := range values {
-				parsedLabels[lbl][value] = struct{}{}
-			}
-		}
-	}
-
-	lblsResult := lblBuilder.LabelsResult().Parsed()
-	lblsResult.Range(func(lbl labels.Label) {
-		if values, ok := parsedLabels[lbl.Name]; ok {
-			values[lbl.Value] = struct{}{}
-		} else {
-			parsedLabels[lbl.Name] = map[string]struct{}{lbl.Value: {}}
-		}
-	})
-
-	result := make(map[string][]string, len(parsedLabels))
-	for lbl, values := range parsedLabels {
-		if lbl == logqlmodel.ErrorLabel || lbl == logqlmodel.ErrorDetailsLabel ||
-			lbl == logqlmodel.PreserveErrorLabel {
+	// Read the parsed labels off the builder rather than through LabelsResult: that cache is keyed
+	// by label hash and shared across streams, so a line whose stream and parsed labels together
+	// match another stream's labels gets that stream's entry back, which has no parsed labels.
+	for _, lbl := range lblBuilder.UnsortedLabels(nil, logql_log.ParsedLabel) {
+		if isErrorLabelName(lbl.Name) {
 			continue
 		}
-		vals := make([]string, 0, len(values))
-		for v := range values {
-			vals = append(vals, v)
-		}
-		result[lbl] = vals
+		result[lbl.Name] = appendUnique(result[lbl.Name], lbl.Value)
 	}
 
 	return result, []string{parser}
 }
 
-func getParsedLabels(entry push.Entry) map[string][]string {
-	labels := map[string]map[string]struct{}{}
-	for _, lbl := range entry.Parsed {
-		if values, ok := labels[lbl.Name]; ok {
-			values[lbl.Value] = struct{}{}
-		} else {
-			labels[lbl.Name] = map[string]struct{}{lbl.Value: {}}
-		}
-	}
+func isErrorLabelName(name string) bool {
+	return name == logqlmodel.ErrorLabel || name == logqlmodel.ErrorDetailsLabel ||
+		name == logqlmodel.PreserveErrorLabel
+}
 
-	result := make(map[string][]string, len(labels))
-	for lbl, values := range labels {
-		vals := make([]string, 0, len(values))
-		for v := range values {
-			vals = append(vals, v)
-		}
-		result[lbl] = vals
+func getParsedLabels(entry push.Entry) map[string][]string {
+	result := make(map[string][]string, len(entry.Parsed))
+	for _, lbl := range entry.Parsed {
+		result[lbl.Name] = appendUnique(result[lbl.Name], lbl.Value)
 	}
 
 	return result

@@ -202,6 +202,9 @@ func (b *BaseLabelsBuilder) Reset() {
 	b.err = ""
 	b.errDetails = ""
 	b.baseMap = nil
+	// jsonPaths is per-line parser output like add/del: a builder is reused across lines, so a path
+	// left behind here would be reported for a later line that never carried that label.
+	clear(b.jsonPaths)
 	b.parserKeyHints.Reset()
 }
 
