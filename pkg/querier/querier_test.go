@@ -3,8 +3,10 @@ package querier
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -26,11 +28,14 @@ import (
 	"github.com/grafana/loki/v3/pkg/iter"
 	"github.com/grafana/loki/v3/pkg/logproto"
 	"github.com/grafana/loki/v3/pkg/logql"
+	"github.com/grafana/loki/v3/pkg/logqlmodel"
 	"github.com/grafana/loki/v3/pkg/querier/testutil"
 	"github.com/grafana/loki/v3/pkg/storage"
 	"github.com/grafana/loki/v3/pkg/util/constants"
 	util_log "github.com/grafana/loki/v3/pkg/util/log"
 	"github.com/grafana/loki/v3/pkg/validation"
+
+	"github.com/grafana/loki/pkg/push"
 )
 
 const (
@@ -1679,5 +1684,100 @@ func BenchmarkQuerierDetectedLabels(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := querier.DetectedLabels(ctx, &request)
 		assert.NoError(b, err)
+	}
+}
+
+// detectedFieldsFixture builds a response shaped like the ones the querier actually parses for
+// /detected_fields: a handful of streams, each carrying many logfmt lines with structured metadata.
+func detectedFieldsFixture(nStreams, nEntries int) logqlmodel.Streams {
+	streams := make(logqlmodel.Streams, 0, nStreams)
+	now := time.Now()
+
+	for s := 0; s < nStreams; s++ {
+		entries := make([]push.Entry, 0, nEntries)
+		for e := 0; e < nEntries; e++ {
+			entries = append(entries, push.Entry{
+				Timestamp: now.Add(time.Duration(e) * time.Millisecond),
+				Line: fmt.Sprintf(
+					`level=info ts=2024-09-05T15:36:38.757788067Z caller=metrics.go:%d org_id=%d traceID=%x latency=fast duration=%dms status=200 lines=%d bytes=%dMB msg="query stats"`,
+					100+e%50, e%97, e, e%1000, e, e%64,
+				),
+				StructuredMetadata: []push.LabelAdapter{
+					{Name: "detected_level", Value: "info"},
+					{Name: "pod", Value: fmt.Sprintf("querier-%d", s)},
+				},
+			})
+		}
+
+		streams = append(streams, push.Stream{
+			Labels:  fmt.Sprintf(`{cluster="us-east-1", namespace="loki-prod", pod="querier-%d", service_name="querier"}`, s),
+			Entries: entries,
+		})
+	}
+
+	return streams
+}
+
+// Test_parseDetectedFields_allocationBudget guards the per-line cost of the detected-fields path.
+// It used to build a fresh label builder, and a map per label, for every single log line, so a
+// request at the default line limit churned tens of megabytes and OOM-restarted the querier. The
+// budget is generous on purpose: it is there to catch a return to per-line allocation, not to pin
+// an exact figure.
+func Test_parseDetectedFields_allocationBudget(t *testing.T) {
+	const (
+		nStreams = 10
+		nEntries = 200
+		// Well above what the current code needs, and well below the ~29MB the per-line
+		// label builder cost before.
+		budget = 20 << 20
+	)
+
+	streams := detectedFieldsFixture(nStreams, nEntries)
+
+	runtime.GC()
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	df := parseDetectedFields(1000, streams)
+	require.NotEmpty(t, df)
+
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+	runtime.KeepAlive(df)
+
+	allocated := after.TotalAlloc - before.TotalAlloc
+	lines := nStreams * nEntries
+	t.Logf("parsed %d lines, allocated %.2f MiB (%d bytes/line)",
+		lines, float64(allocated)/(1<<20), allocated/uint64(lines))
+
+	require.Lessf(t, allocated, uint64(budget),
+		"parsing %d log lines allocated %.2f MiB, over the %d MiB budget: the detected-fields path is allocating per log line again",
+		lines, float64(allocated)/(1<<20), budget>>20)
+}
+
+func Test_getStructuredMetadata_dedupesValues(t *testing.T) {
+	got := getStructuredMetadata(push.Entry{
+		StructuredMetadata: []push.LabelAdapter{
+			{Name: "pod", Value: "a"},
+			{Name: "pod", Value: "a"},
+			{Name: "pod", Value: "b"},
+			{Name: "level", Value: "info"},
+		},
+	})
+
+	require.Equal(t, map[string][]string{
+		"pod":   {"a", "b"},
+		"level": {"info"},
+	}, got)
+}
+
+func BenchmarkParseDetectedFields(b *testing.B) {
+	streams := detectedFieldsFixture(10, 100)
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if got := parseDetectedFields(1000, streams); len(got) == 0 {
+			b.Fatal("no detected fields")
+		}
 	}
 }
