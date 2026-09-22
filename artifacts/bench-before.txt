@@ -1,0 +1,15 @@
+goos: linux
+goarch: amd64
+pkg: github.com/grafana/loki/v3/pkg/querier/queryrange
+cpu: Intel(R) Xeon(R) Processor
+BenchmarkParseDetectedFields/streams=1/entries=1000-8         	      30	  17944098 ns/op	15189959 B/op	  205394 allocs/op
+BenchmarkParseDetectedFields/streams=1/entries=1000-8         	      30	  17811750 ns/op	15189990 B/op	  205393 allocs/op
+BenchmarkParseDetectedFields/streams=1/entries=1000-8         	      30	  17486201 ns/op	15189824 B/op	  205392 allocs/op
+BenchmarkParseDetectedFields/streams=10/entries=100-8         	      30	  17813266 ns/op	15074164 B/op	  202545 allocs/op
+BenchmarkParseDetectedFields/streams=10/entries=100-8         	      30	  16981895 ns/op	15074407 B/op	  202545 allocs/op
+BenchmarkParseDetectedFields/streams=10/entries=100-8         	      30	  15858216 ns/op	15072894 B/op	  202543 allocs/op
+BenchmarkParseDetectedFields/streams=50/entries=100-8         	      30	  76933760 ns/op	75081484 B/op	 1012221 allocs/op
+BenchmarkParseDetectedFields/streams=50/entries=100-8         	      30	  77801148 ns/op	75079399 B/op	 1012222 allocs/op
+BenchmarkParseDetectedFields/streams=50/entries=100-8         	      30	  77278774 ns/op	75079884 B/op	 1012220 allocs/op
+PASS
+ok  	github.com/grafana/loki/v3/pkg/querier/queryrange	10.497s

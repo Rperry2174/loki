@@ -1,0 +1,36 @@
+### On main (before the fix)
+
+$ go test -run Test_parseDetectedFields_allocationBudget -v ./pkg/querier/queryrange/ ./pkg/querier/
+=== RUN   Test_parseDetectedFields_allocationBudget
+    detected_fields_test.go:950: parsed 2000 lines, allocated 28.83 MiB (15116 bytes/line)
+    detected_fields_test.go:953: 
+        	Error Trace:	/workspace/pkg/querier/queryrange/detected_fields_test.go:953
+        	Error:      	"30232272" is not less than "20971520"
+        	Test:       	Test_parseDetectedFields_allocationBudget
+        	Messages:   	parsing 2000 log lines allocated 28.83 MiB, over the 20 MiB budget: the detected-fields path is allocating per log line again
+--- FAIL: Test_parseDetectedFields_allocationBudget (0.04s)
+FAIL
+FAIL	github.com/grafana/loki/v3/pkg/querier/queryrange	0.061s
+=== RUN   Test_parseDetectedFields_allocationBudget
+    querier_test.go:1750: parsed 2000 lines, allocated 28.67 MiB (15031 bytes/line)
+    querier_test.go:1753: 
+        	Error Trace:	/workspace/pkg/querier/querier_test.go:1753
+        	Error:      	"30063344" is not less than "20971520"
+        	Test:       	Test_parseDetectedFields_allocationBudget
+        	Messages:   	parsing 2000 log lines allocated 28.67 MiB, over the 20 MiB budget: the detected-fields path is allocating per log line again
+--- FAIL: Test_parseDetectedFields_allocationBudget (0.04s)
+FAIL
+FAIL	github.com/grafana/loki/v3/pkg/querier	0.060s
+FAIL
+
+$ go test -run TestLabelsBuilder_ResetClearsJSONPaths -v ./pkg/logql/log/
+=== RUN   TestLabelsBuilder_ResetClearsJSONPaths
+    labels_test.go:61: 
+        	Error Trace:	/workspace/pkg/logql/log/labels_test.go:61
+        	Error:      	Expected nil, but got: []string{"user", "id"}
+        	Test:       	TestLabelsBuilder_ResetClearsJSONPaths
+        	Messages:   	a JSON path from a previous line must not be reported for the next one
+--- FAIL: TestLabelsBuilder_ResetClearsJSONPaths (0.00s)
+FAIL
+FAIL	github.com/grafana/loki/v3/pkg/logql/log	0.010s
+FAIL

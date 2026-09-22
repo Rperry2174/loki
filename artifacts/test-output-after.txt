@@ -1,0 +1,19 @@
+### With the fix
+
+$ go test -run Test_parseDetectedFields_allocationBudget -v ./pkg/querier/queryrange/ ./pkg/querier/
+=== RUN   Test_parseDetectedFields_allocationBudget
+    detected_fields_test.go:950: parsed 2000 lines, allocated 15.26 MiB (7999 bytes/line)
+--- PASS: Test_parseDetectedFields_allocationBudget (0.03s)
+PASS
+ok  	github.com/grafana/loki/v3/pkg/querier/queryrange	0.052s
+=== RUN   Test_parseDetectedFields_allocationBudget
+    querier_test.go:1750: parsed 2000 lines, allocated 15.11 MiB (7919 bytes/line)
+--- PASS: Test_parseDetectedFields_allocationBudget (0.03s)
+PASS
+ok  	github.com/grafana/loki/v3/pkg/querier	0.051s
+
+$ go test -run TestLabelsBuilder_ResetClearsJSONPaths -v ./pkg/logql/log/
+=== RUN   TestLabelsBuilder_ResetClearsJSONPaths
+--- PASS: TestLabelsBuilder_ResetClearsJSONPaths (0.00s)
+PASS
+ok  	github.com/grafana/loki/v3/pkg/logql/log	0.009s
