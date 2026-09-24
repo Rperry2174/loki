@@ -37,6 +37,12 @@ The output is incredibly verbose as it shows the entire internal config struct u
 
 ## Main / Unreleased
 
+### `max_chunks_per_query` is now enforced
+
+The per-tenant `max_chunks_per_query` setting (`-store.query-chunk-limit`) is now enforced. It was previously accepted and reported by the overrides exporter, but no component read it, so a query could resolve any number of chunks and exhaust querier memory. A query that matches more chunks than the limit allows is now rejected with an HTTP 400 status before the querier fetches any of them.
+
+The default remains 2000000 chunks, which is high enough that most tenants are unaffected. To find out whether any of your queries come close to it, read the `querier.store.totalChunksRef` field of the query statistics returned with a query response. Raise `max_chunks_per_query` for the tenants whose queries must keep working, or set it to `0` to disable the limit and restore the previous behavior.
+
 ### Optional index gateway client request limits
 
 Index gateway clients support two experimental limits that are disabled by default, preserving the existing request limits.

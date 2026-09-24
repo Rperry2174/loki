@@ -428,7 +428,7 @@ The estimated data volume for the query exceeds the configured limit. This is de
 
 **Error message:**
 
-`the query hit the max number of chunks limit (limit: 2000000 chunks)`
+`the query hit the max number of chunks limit (limit: 2000000 chunks, matched: 2500000 chunks); consider adding more specific stream selectors or reducing the query time range`
 
 **Cause:**
 
@@ -459,9 +459,11 @@ The number of chunks that the query would read exceeds the configured limit. Thi
      max_chunks_per_query: 5000000  #default is 2000000
    ```
 
+   Setting `max_chunks_per_query` to `0` disables the limit, which leaves the querier with no ceiling on the chunks a single query can fetch.
+
 **Properties:**
 
-- Enforced by: Query Frontend
+- Enforced by: Querier
 - Retryable: No (query must be modified)
 - HTTP status: 400 Bad Request
 - Configurable per tenant: Yes
