@@ -4674,7 +4674,10 @@ discover_generic_fields:
 # CLI flag: -ingester.per-stream-rate-limit-burst
 [per_stream_rate_limit_burst: <int> | default = 15MB]
 
-# Maximum number of chunks that can be fetched in a single query.
+# Maximum number of chunks that can be fetched in a single query. Enforced on
+# the querier before any chunk is fetched, and applied per query reaching a
+# querier, so after the query-frontend has split and sharded the original query.
+# 0 to disable.
 # CLI flag: -store.query-chunk-limit
 [max_chunks_per_query: <int> | default = 2000000]
 

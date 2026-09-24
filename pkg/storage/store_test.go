@@ -35,12 +35,14 @@ import (
 	"github.com/grafana/loki/v3/pkg/storage/chunk"
 	"github.com/grafana/loki/v3/pkg/storage/chunk/client/local"
 	"github.com/grafana/loki/v3/pkg/storage/config"
+	storage_errors "github.com/grafana/loki/v3/pkg/storage/errors"
 	"github.com/grafana/loki/v3/pkg/storage/stores/shipper/indexshipper"
 	"github.com/grafana/loki/v3/pkg/storage/types"
 	"github.com/grafana/loki/v3/pkg/util"
 	"github.com/grafana/loki/v3/pkg/util/constants"
 	"github.com/grafana/loki/v3/pkg/util/httpreq"
 	"github.com/grafana/loki/v3/pkg/util/marshal"
+	util_validation "github.com/grafana/loki/v3/pkg/util/validation"
 	"github.com/grafana/loki/v3/pkg/validation"
 )
 
@@ -368,6 +370,7 @@ func Test_LokiStore_SelectLogs(t *testing.T) {
 					MaxChunkBatchSize: 10,
 				},
 				chunkMetrics: NilMetrics,
+				limits:       noStoreLimits,
 				logger:       log.NewNopLogger(),
 			}
 
@@ -697,6 +700,7 @@ func Test_LokiStore_SelectSample(t *testing.T) {
 					MaxChunkBatchSize: 10,
 				},
 				chunkMetrics: NilMetrics,
+				limits:       noStoreLimits,
 			}
 
 			tt.req.Plan = testutil.MustPlan(tt.req.Selector)
@@ -725,6 +729,7 @@ func TestLokiStore_SelectSamples_ShouldErrorOnUnknownSampleOrder(t *testing.T) {
 		Store:        storeFixture,
 		cfg:          Config{MaxChunkBatchSize: 10},
 		chunkMetrics: NilMetrics,
+		limits:       noStoreLimits,
 	}
 	req := newSampleQuery("count_over_time({foo=~\"ba.*\"}[5m])", from, from.Add(6*time.Millisecond), nil, nil)
 	req.Order = unknownOrder
@@ -732,6 +737,58 @@ func TestLokiStore_SelectSamples_ShouldErrorOnUnknownSampleOrder(t *testing.T) {
 	ctx := user.InjectOrgID(context.Background(), "test-user")
 	_, err := s.SelectSamples(ctx, logql.SelectSampleParams{SampleQueryRequest: req})
 	require.ErrorContains(t, err, "unknown sample order")
+}
+
+func TestLokiStore_MaxChunksPerQuery(t *testing.T) {
+	// {foo=~"ba.*"} matches every stream in the fixture, one chunk each.
+	const (
+		query          = `{foo=~"ba.*"}`
+		matchingChunks = 4
+	)
+
+	for _, tt := range []struct {
+		name              string
+		maxChunksPerQuery int
+		wantErr           bool
+	}{
+		{name: "limit disabled", maxChunksPerQuery: 0},
+		{name: "matched chunks at the limit", maxChunksPerQuery: matchingChunks},
+		{name: "matched chunks over the limit", maxChunksPerQuery: matchingChunks - 1, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &LokiStore{
+				Store:        storeFixture,
+				cfg:          Config{MaxChunkBatchSize: 10},
+				chunkMetrics: NilMetrics,
+				limits:       mustStoreLimits(validation.Limits{MaxChunksPerQuery: tt.maxChunksPerQuery}),
+			}
+			ctx := user.InjectOrgID(context.Background(), "test-user")
+			start, end := from, from.Add(6*time.Millisecond)
+
+			assertLimit := func(t *testing.T, err error) {
+				t.Helper()
+				if !tt.wantErr {
+					require.NoError(t, err)
+					return
+				}
+				require.EqualError(t, err, fmt.Sprintf(util_validation.ErrMaxChunksPerQuery, tt.maxChunksPerQuery, matchingChunks))
+				// A QueryError is what makes this a 400 the client must act on
+				// rather than a 500 the frontend keeps retrying.
+				require.ErrorAs(t, err, new(storage_errors.QueryError))
+			}
+
+			t.Run("logs", func(t *testing.T) {
+				_, err := s.SelectLogs(ctx, logql.SelectLogParams{QueryRequest: newQuery(query, start, end, nil, nil)})
+				assertLimit(t, err)
+			})
+
+			t.Run("samples", func(t *testing.T) {
+				req := newSampleQuery(fmt.Sprintf("count_over_time(%s[5m])", query), start, end, nil, nil)
+				_, err := s.SelectSamples(ctx, logql.SelectSampleParams{SampleQueryRequest: req})
+				assertLimit(t, err)
+			})
+		})
+	}
 }
 
 type fakeChunkFilterer struct{}
@@ -755,6 +812,7 @@ func TestLokiStore_SelectWithChunkFilterer(t *testing.T) {
 			MaxChunkBatchSize: 10,
 		},
 		chunkMetrics: NilMetrics,
+		limits:       noStoreLimits,
 	}
 	s.SetChunkFilterer(&fakeChunkFilterer{})
 	ctx = user.InjectOrgID(context.Background(), "test-user")
@@ -804,6 +862,7 @@ func Test_PipelineWrapper(t *testing.T) {
 			MaxChunkBatchSize: 10,
 		},
 		chunkMetrics: NilMetrics,
+		limits:       noStoreLimits,
 	}
 	wrapper := &testPipelineWrapper{
 		pipeline: newMockPipeline(),
@@ -834,6 +893,7 @@ func Test_PipelineWrapper_disabled(t *testing.T) {
 			MaxChunkBatchSize: 10,
 		},
 		chunkMetrics: NilMetrics,
+		limits:       noStoreLimits,
 	}
 	wrapper := &testPipelineWrapper{
 		pipeline: newMockPipeline(),
@@ -921,6 +981,7 @@ func Test_SampleWrapper(t *testing.T) {
 			MaxChunkBatchSize: 10,
 		},
 		chunkMetrics: NilMetrics,
+		limits:       noStoreLimits,
 	}
 	wrapper := &testExtractorWrapper{
 		extractor: newMockExtractor(),
@@ -950,6 +1011,7 @@ func Test_SampleWrapper_disabled(t *testing.T) {
 			MaxChunkBatchSize: 10,
 		},
 		chunkMetrics: NilMetrics,
+		limits:       noStoreLimits,
 	}
 	wrapper := &testExtractorWrapper{
 		extractor: newMockExtractor(),
@@ -1112,6 +1174,7 @@ func Test_store_GetSeries(t *testing.T) {
 					MaxChunkBatchSize: tt.batchSize,
 				},
 				chunkMetrics: NilMetrics,
+				limits:       noStoreLimits,
 			}
 			ctx = user.InjectOrgID(context.Background(), "test-user")
 			out, err := s.SelectSeries(ctx, logql.SelectLogParams{QueryRequest: tt.req})
@@ -1539,6 +1602,7 @@ func Test_OverlappingChunks(t *testing.T) {
 			MaxChunkBatchSize: 10,
 		},
 		chunkMetrics: NilMetrics,
+		limits:       noStoreLimits,
 	}
 
 	ctx = user.InjectOrgID(context.Background(), "test-user")
@@ -1601,6 +1665,7 @@ func Test_GetSeries(t *testing.T) {
 				MaxChunkBatchSize: 10,
 			},
 			chunkMetrics: NilMetrics,
+			limits:       noStoreLimits,
 		}
 		ctx            = user.InjectOrgID(context.Background(), "test-user")
 		expectedSeries = []logproto.SeriesIdentifier{

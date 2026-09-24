@@ -43,6 +43,10 @@ type StoreLimits interface {
 	stores.StoreLimits
 	indexgateway.Limits
 	CardinalityLimit(string) int
+
+	// MaxChunksPerQuery bounds how many chunks a single query may resolve from
+	// the store. 0 disables the limit.
+	MaxChunksPerQuery(userID string) int
 }
 
 // Storage configs defined as Named stores don't get any defaults as they do not

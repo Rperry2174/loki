@@ -9,4 +9,8 @@ const (
 	// ErrMaxEntriesLimit is used by the querier, the query frontend and the v2
 	// engine, and matched by pkg/util/server, so they cannot drift apart.
 	ErrMaxEntriesLimit = "max entries limit per query exceeded, limit > max_entries_limit_per_query (%d > %d)"
+
+	// ErrMaxChunksPerQuery is used by the querier when resolving chunk refs from
+	// the store, and matched by pkg/util/server, so they cannot drift apart.
+	ErrMaxChunksPerQuery = "the query hit the max number of chunks limit (limit: %d chunks, matched: %d chunks); consider adding more specific stream selectors or reducing the query time range"
 )
