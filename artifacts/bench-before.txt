@@ -1,0 +1,62 @@
+goos: linux
+goarch: amd64
+pkg: github.com/grafana/loki/v3/pkg/querier/queryrange
+cpu: Intel(R) Xeon(R) Processor
+BenchmarkResponseMerge/mergeStreams_unlimited-4         	      50	  39094410 ns/op	84266033 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_unlimited-4         	      50	  40127702 ns/op	84266035 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_unlimited-4         	      50	  40504654 ns/op	84266039 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_unlimited-4         	      50	  40133264 ns/op	84266032 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_unlimited-4         	      50	  40047911 ns/op	84266032 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_unlimited-4         	      50	  40779982 ns/op	84266030 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_unlimited-4         	      50	  40906241 ns/op	84266030 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_unlimited-4         	      50	  39985171 ns/op	84266032 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_unlimited-4         	      50	   1603530 ns/op	 9108554 B/op	     811 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_unlimited-4         	      50	   1891875 ns/op	 9108558 B/op	     811 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_unlimited-4         	      50	   1802474 ns/op	 9108554 B/op	     811 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_unlimited-4         	      50	   1843024 ns/op	 9108558 B/op	     811 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_unlimited-4         	      50	   1667659 ns/op	 9108552 B/op	     811 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_unlimited-4         	      50	   1715141 ns/op	 9108552 B/op	     811 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_unlimited-4         	      50	   1922902 ns/op	 9108552 B/op	     811 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_unlimited-4         	      50	   1729952 ns/op	 9108552 B/op	     811 allocs/op
+BenchmarkResponseMerge/mergeStreams_limited-4                                	      50	  43899253 ns/op	84266039 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_limited-4                                	      50	  43706804 ns/op	84266030 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_limited-4                                	      50	  42810997 ns/op	84266037 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_limited-4                                	      50	  44025504 ns/op	84266035 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_limited-4                                	      50	  42990738 ns/op	84266032 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_limited-4                                	      50	  44162548 ns/op	84266032 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_limited-4                                	      50	  42514668 ns/op	84266041 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeStreams_limited-4                                	      50	  43180776 ns/op	84266037 B/op	    1341 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_limited-4           	      50	  14718999 ns/op	35909576 B/op	  101128 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_limited-4           	      50	  13750481 ns/op	35909576 B/op	  101128 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_limited-4           	      50	  14609598 ns/op	35909578 B/op	  101128 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_limited-4           	      50	  13800090 ns/op	35909576 B/op	  101128 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_limited-4           	      50	  13923426 ns/op	35909576 B/op	  101128 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_limited-4           	      50	  13980751 ns/op	35909576 B/op	  101128 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_limited-4           	      50	  14202336 ns/op	35909584 B/op	  101128 allocs/op
+BenchmarkResponseMerge/mergeOrderedNonOverlappingStreams_limited-4           	      50	  14113758 ns/op	35909576 B/op	  101128 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=100-4                                 	      50	    103988 ns/op	  342648 B/op	     474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=100-4                                 	      50	    119369 ns/op	  342648 B/op	     474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=100-4                                 	      50	    141819 ns/op	  342648 B/op	     474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=100-4                                 	      50	    138011 ns/op	  342648 B/op	     474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=100-4                                 	      50	    130255 ns/op	  342648 B/op	     474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=100-4                                 	      50	    143155 ns/op	  342648 B/op	     474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=100-4                                 	      50	    148226 ns/op	  342648 B/op	     474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=100-4                                 	      50	    130374 ns/op	  342648 B/op	     474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=1000-4                                	      50	    195615 ns/op	  466648 B/op	    1374 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=1000-4                                	      50	    169400 ns/op	  466648 B/op	    1374 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=1000-4                                	      50	    169996 ns/op	  466650 B/op	    1374 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=1000-4                                	      50	    178659 ns/op	  466648 B/op	    1374 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=1000-4                                	      50	    186776 ns/op	  466648 B/op	    1374 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=1000-4                                	      50	    182283 ns/op	  466648 B/op	    1374 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=1000-4                                	      50	    189287 ns/op	  466648 B/op	    1374 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=1000-4                                	      50	    177101 ns/op	  466648 B/op	    1374 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=10000-4                               	      50	   1291549 ns/op	 2659448 B/op	   10474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=10000-4                               	      50	   1270494 ns/op	 2659448 B/op	   10474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=10000-4                               	      50	   1299810 ns/op	 2659448 B/op	   10474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=10000-4                               	      50	   1254521 ns/op	 2659448 B/op	   10474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=10000-4                               	      50	   1257687 ns/op	 2659448 B/op	   10474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=10000-4                               	      50	   1331528 ns/op	 2659448 B/op	   10474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=10000-4                               	      50	   1245865 ns/op	 2659448 B/op	   10474 allocs/op
+BenchmarkResponseMergeSplitHeavy/limit=10000-4                               	      50	   1308302 ns/op	 2659448 B/op	   10474 allocs/op
+PASS
+ok  	github.com/grafana/loki/v3/pkg/querier/queryrange	41.626s

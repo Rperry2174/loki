@@ -2638,6 +2638,104 @@ func BenchmarkResponseMerge(b *testing.B) {
 	}
 }
 
+// BenchmarkResponseMergeSplitHeavy models the shape that drives read-path heap
+// growth in practice: a wide time range fanned out into many splits, each of
+// which returns up to `limit` entries, merged down to a single `limit`-sized
+// page. Here the merge input is two orders of magnitude larger than the output.
+func BenchmarkResponseMergeSplitHeavy(b *testing.B) {
+	const (
+		resps         = 32
+		streams       = 50
+		logsPerStream = 2000
+	)
+
+	for _, limit := range []uint32{100, 1000, 10000} {
+		input := mkResps(resps, streams, logsPerStream, logproto.FORWARD)
+		b.Run(fmt.Sprintf("limit=%d", limit), func(b *testing.B) {
+			b.ReportAllocs()
+			for n := 0; n < b.N; n++ {
+				mergeOrderedNonOverlappingStreams(input, limit, logproto.FORWARD)
+			}
+		})
+	}
+}
+
+// TestMergeOrderedNonOverlappingStreams pins the behaviour of the ordered merge
+// against mergeStreams, the straightforward sort-everything implementation kept
+// in benchmarkutils_test.go.
+func TestMergeOrderedNonOverlappingStreams(t *testing.T) {
+	for _, direction := range []logproto.Direction{logproto.FORWARD, logproto.BACKWARD} {
+		for _, tc := range []struct {
+			resps, streams, logsPerStream int
+		}{
+			{1, 1, 1},
+			{1, 5, 10},
+			{4, 1, 100},
+			{4, 10, 40},
+			{7, 3, 21},
+		} {
+			total := tc.streams * tc.logsPerStream
+			for _, limit := range []uint32{1, 7, uint32(total / 2), uint32(total), uint32(total + 10)} {
+				if limit == 0 {
+					continue
+				}
+
+				name := fmt.Sprintf("%v/resps=%d/streams=%d/logs=%d/limit=%d",
+					direction, tc.resps, tc.streams, tc.logsPerStream, limit)
+
+				t.Run(name, func(t *testing.T) {
+					got := mergeOrderedNonOverlappingStreams(
+						mkOrderedResps(tc.resps, tc.streams, tc.logsPerStream, direction), limit, direction)
+					want := mergeStreams(
+						mkOrderedResps(tc.resps, tc.streams, tc.logsPerStream, direction), limit, direction)
+
+					require.Equal(t, min(total, int(limit)), entryCount(got),
+						"merge should emit min(limit, total) entries")
+					require.Equal(t, want, got)
+				})
+			}
+		}
+	}
+}
+
+func entryCount(streams []logproto.Stream) (n int) {
+	for _, s := range streams {
+		n += len(s.Entries)
+	}
+	return n
+}
+
+// mkOrderedResps builds the input contract mergeOrderedNonOverlappingStreams
+// expects: responses ordered by direction, non-overlapping in time, and sorted
+// within each stream. Timestamps are unique across streams so the merged order
+// is unambiguous and can be compared against a reference implementation.
+// nLogs must divide evenly by nResps.
+func mkOrderedResps(nResps, nStreams, nLogs int, direction logproto.Direction) []*LokiResponse {
+	perResp := nLogs / nResps
+	resps := make([]*LokiResponse, 0, nResps)
+
+	for i := 0; i < nResps; i++ {
+		r := &LokiResponse{}
+		for j := 0; j < nStreams; j++ {
+			stream := logproto.Stream{Labels: fmt.Sprintf(`{foo="%d"}`, j)}
+			for k := 0; k < perResp; k++ {
+				idx := i*perResp + k
+				if direction == logproto.BACKWARD {
+					idx = nLogs - 1 - idx
+				}
+				ts := int64(idx*nStreams + j)
+				stream.Entries = append(stream.Entries, logproto.Entry{
+					Timestamp: time.Unix(0, ts+1),
+					Line:      fmt.Sprintf("%d", ts),
+				})
+			}
+			r.Data.Result = append(r.Data.Result, stream)
+		}
+		resps = append(resps, r)
+	}
+	return resps
+}
+
 func mkResps(nResps, nStreams, nLogs int, direction logproto.Direction) (resps []*LokiResponse) {
 	for i := 0; i < nResps; i++ {
 		r := &LokiResponse{}

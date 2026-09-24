@@ -1,0 +1,121 @@
+{
+  "ResponseMerge/mergeOrderedNonOverlappingStreams_limited": {
+    "allocs": {
+      "before": 101128.0,
+      "after": 1228.0,
+      "delta_pct": -98.78569733407167
+    },
+    "bytes": {
+      "before": 35909576.0,
+      "after": 31114378.0,
+      "delta_pct": -13.353535558314583
+    },
+    "ns": {
+      "before": 14047254.5,
+      "after": 11633546.0,
+      "delta_pct": -17.182777602555717
+    }
+  },
+  "ResponseMergeSplitHeavy/limit=10000": {
+    "allocs": {
+      "before": 10474.0,
+      "after": 474.0,
+      "delta_pct": -95.47450830628222
+    },
+    "bytes": {
+      "before": 2659448.0,
+      "after": 2179448.0,
+      "delta_pct": -18.048858259307945
+    },
+    "ns": {
+      "before": 1281021.5,
+      "after": 979369.0,
+      "delta_pct": -23.547809306869556
+    }
+  },
+  "ResponseMergeSplitHeavy/limit=1000": {
+    "allocs": {
+      "before": 1374.0,
+      "after": 374.0,
+      "delta_pct": -72.7802037845706
+    },
+    "bytes": {
+      "before": 466648.0,
+      "after": 418648.0,
+      "delta_pct": -10.286125730743516
+    },
+    "ns": {
+      "before": 180471.0,
+      "after": 156020.0,
+      "delta_pct": -13.548437145026071
+    }
+  },
+  "ResponseMergeSplitHeavy/limit=100": {
+    "allocs": {
+      "before": 474.0,
+      "after": 374.0,
+      "delta_pct": -21.09704641350211
+    },
+    "bytes": {
+      "before": 342648.0,
+      "after": 337848.0,
+      "delta_pct": -1.4008545212579673
+    },
+    "ns": {
+      "before": 134192.5,
+      "after": 127865.5,
+      "delta_pct": -4.7148685656799
+    }
+  },
+  "ResponseMerge/mergeStreams_unlimited": {
+    "allocs": {
+      "before": 1341.0,
+      "after": 1341.0,
+      "delta_pct": 0.0
+    },
+    "bytes": {
+      "before": 84266032.0,
+      "after": 84266033.5,
+      "delta_pct": 1.7800766980460168e-06
+    },
+    "ns": {
+      "before": 40130483.0,
+      "after": 41113819.5,
+      "delta_pct": 2.4503480309469485
+    }
+  },
+  "ResponseMerge/mergeStreams_limited": {
+    "allocs": {
+      "before": 1341.0,
+      "after": 1341.0,
+      "delta_pct": 0.0
+    },
+    "bytes": {
+      "before": 84266036.0,
+      "after": 84266037.0,
+      "delta_pct": 1.186717742365382e-06
+    },
+    "ns": {
+      "before": 43443790.0,
+      "after": 42250567.0,
+      "delta_pct": -2.746590479329727
+    }
+  },
+  "ResponseMerge/mergeOrderedNonOverlappingStreams_unlimited": {
+    "allocs": {
+      "before": 811.0,
+      "after": 811.0,
+      "delta_pct": 0.0
+    },
+    "bytes": {
+      "before": 9108553.0,
+      "after": 9108553.0,
+      "delta_pct": 0.0
+    },
+    "ns": {
+      "before": 1766213.0,
+      "after": 1590491.0,
+      "delta_pct": -9.94908315135264
+    }
+  }
+}

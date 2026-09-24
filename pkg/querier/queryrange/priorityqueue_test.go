@@ -37,13 +37,10 @@ func TestPriorityQueuePopForward(t *testing.T) {
 	)
 
 	for i := 0; pq.Len() > 0 && i < 4; i++ {
-		stream := heap.Pop(pq).(*logproto.Stream)
-
-		require.Len(t, stream.Entries, 1, "heap.Pop should return a stream with exactly one entry")
-		entry := stream.Entries[0]
+		labels, entry := pq.popEntry()
 
 		gotTimestamps = append(gotTimestamps, entry.Timestamp.UnixNano())
-		gotLabels = append(gotLabels, stream.Labels)
+		gotLabels = append(gotLabels, labels)
 	}
 
 	require.Equal(t, []int64{1, 2, 3, 4}, gotTimestamps)
@@ -77,11 +74,10 @@ func TestPriorityQueuePopBackward(t *testing.T) {
 		gotLabels     []string
 	)
 	for pq.Len() > 0 {
-		stream := heap.Pop(pq).(*logproto.Stream)
-		require.Len(t, stream.Entries, 1)
+		labels, entry := pq.popEntry()
 
-		gotTimestamps = append(gotTimestamps, stream.Entries[0].Timestamp.UnixNano())
-		gotLabels = append(gotLabels, stream.Labels)
+		gotTimestamps = append(gotTimestamps, entry.Timestamp.UnixNano())
+		gotLabels = append(gotLabels, labels)
 	}
 
 	require.Equal(t, []int64{10, 9, 5, 1}, gotTimestamps)
