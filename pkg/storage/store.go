@@ -31,6 +31,7 @@ import (
 	"github.com/grafana/loki/v3/pkg/storage/chunk/client/congestion"
 	"github.com/grafana/loki/v3/pkg/storage/chunk/fetcher"
 	"github.com/grafana/loki/v3/pkg/storage/config"
+	storage_errors "github.com/grafana/loki/v3/pkg/storage/errors"
 	"github.com/grafana/loki/v3/pkg/storage/stores"
 	"github.com/grafana/loki/v3/pkg/storage/stores/index"
 	"github.com/grafana/loki/v3/pkg/storage/stores/series"
@@ -40,6 +41,7 @@ import (
 	"github.com/grafana/loki/v3/pkg/util"
 	"github.com/grafana/loki/v3/pkg/util/deletion"
 	"github.com/grafana/loki/v3/pkg/util/httpreq"
+	util_validation "github.com/grafana/loki/v3/pkg/util/validation"
 )
 
 var tracer = otel.Tracer("pkg/storage")
@@ -486,6 +488,13 @@ func (s *LokiStore) lazyChunks(
 	}
 	s.chunkMetrics.refs.WithLabelValues(statusDiscarded).Add(float64(prefiltered - filtered))
 	s.chunkMetrics.refs.WithLabelValues(statusMatched).Add(float64(filtered))
+
+	// Fail before the batch iterator starts fetching and decompressing chunks:
+	// this is the earliest point at which the size of the working set is known,
+	// and an unbounded one is what OOMKills queriers.
+	if maxChunks := s.limits.MaxChunksPerQuery(userID); maxChunks > 0 && filtered > maxChunks {
+		return nil, storage_errors.QueryError(fmt.Sprintf(util_validation.ErrMaxChunksPerQuery, maxChunks, filtered))
+	}
 
 	// creates lazychunks with chunks ref.
 	lazyChunks := make([]*LazyChunk, 0, filtered)

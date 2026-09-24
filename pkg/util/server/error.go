@@ -113,6 +113,8 @@ func reasonForBadRequest(err error) (category, reason string) {
 		return FailureLimit, "max_entries"
 	case matchesTemplate(msg, validation.ErrQueryTooLong):
 		return FailureLimit, "max_query_length"
+	case matchesTemplate(msg, validation.ErrMaxChunksPerQuery):
+		return FailureLimit, "max_chunks_per_query"
 	default:
 		return FailureUserError, "bad_request"
 	}

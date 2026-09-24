@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/loki/v3/pkg/logqlmodel"
+	storage_errors "github.com/grafana/loki/v3/pkg/storage/errors"
 	"github.com/grafana/loki/v3/pkg/util/validation"
 )
 
@@ -72,6 +73,19 @@ func TestClassifyFailure(t *testing.T) {
 			"max_query_length_400_message_only",
 			httpgrpc.Errorf(http.StatusBadRequest, validation.ErrQueryTooLong, "800h", "721h"),
 			FailureLimit, "max_query_length",
+		},
+		{
+			// Raised on the querier as a storage QueryError, which carries no
+			// sentinel, so only the message match can classify it.
+			"max_chunks_per_query",
+			storage_errors.QueryError(fmt.Sprintf(validation.ErrMaxChunksPerQuery, 2000000, 3000000)),
+			FailureLimit, "max_chunks_per_query",
+		},
+		{
+			// Wire-crossing counterpart of max_chunks_per_query, as above.
+			"max_chunks_per_query_400_message_only",
+			httpgrpc.Errorf(http.StatusBadRequest, validation.ErrMaxChunksPerQuery, 2000000, 3000000),
+			FailureLimit, "max_chunks_per_query",
 		},
 		{
 			"gateway_timeout",

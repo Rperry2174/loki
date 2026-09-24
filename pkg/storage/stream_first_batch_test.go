@@ -57,6 +57,7 @@ func TestLokiStore_SelectSamples_StreamFirstMatchesTimestampFirst(t *testing.T) 
 			chunkMetrics: NilMetrics,
 			cfg:          Config{MaxChunkBatchSize: 50, MaxParallelGetChunk: 150},
 			Store:        newMockChunkStore(chunkfmt, headfmt, streams),
+			limits:       noStoreLimits,
 		}
 		_, ctx := stats.NewContext(user.InjectOrgID(context.Background(), "fake"))
 		req := newSampleQuery(query, start, end, shards, nil)
@@ -95,7 +96,7 @@ func TestLokiStore_SelectSamples_StreamFirstMatchesTimestampFirst(t *testing.T) 
 		_, ctx := stats.NewContext(user.InjectOrgID(context.Background(), "fake"))
 		half := len(streams) / 2
 		selectSamples := func(t *testing.T, ss []*logproto.Stream) iter.SampleIterator {
-			st := &LokiStore{chunkMetrics: NilMetrics, cfg: Config{MaxChunkBatchSize: 50}, Store: newMockChunkStore(chunkfmt, headfmt, ss)}
+			st := &LokiStore{chunkMetrics: NilMetrics, cfg: Config{MaxChunkBatchSize: 50}, Store: newMockChunkStore(chunkfmt, headfmt, ss), limits: noStoreLimits}
 			req := newSampleQuery(query, start, end, nil, nil)
 			req.Order = logproto.SAMPLE_ORDER_BY_STREAM
 			it, err := st.SelectSamples(ctx, logql.SelectSampleParams{SampleQueryRequest: req})
@@ -135,6 +136,7 @@ func TestLokiStore_SelectSamples_StreamFirst_ReleaseDoesNotRaceAbandonedFetch(t 
 		chunkMetrics: NilMetrics,
 		cfg:          Config{MaxChunkBatchSize: 1, MaxParallelGetChunk: 1},
 		Store:        newMockChunkStore(chunkfmt, headfmt, streams),
+		limits:       noStoreLimits,
 	}
 	ctx, cancel := context.WithCancel(user.InjectOrgID(context.Background(), "fake"))
 	defer cancel()
@@ -177,6 +179,7 @@ func TestLokiStore_SelectSamples_StreamFirst_ReleaseFetchedData(t *testing.T) {
 		chunkMetrics: NilMetrics,
 		cfg:          Config{MaxChunkBatchSize: 2, MaxParallelGetChunk: 4},
 		Store:        newMockChunkStore(chunkfmt, headfmt, streams),
+		limits:       noStoreLimits,
 	}
 	ctx := user.InjectOrgID(context.Background(), "fake")
 	req := newSampleQuery(`count_over_time({foo=~".+"}[1m])`, time.Unix(0, 0), time.Unix(0, int64(chunksPerStream*logsPerChunk+1)), nil, nil)
@@ -246,6 +249,7 @@ func BenchmarkLokiStore_SelectSamples(b *testing.B) {
 				chunkMetrics: NilMetrics,
 				cfg:          Config{MaxChunkBatchSize: 50, MaxParallelGetChunk: 150},
 				Store:        newMockChunkStore(chunkfmt, headfmt, streams),
+				limits:       noStoreLimits,
 			}
 			it, err := st.SelectSamples(ctx, logql.SelectSampleParams{SampleQueryRequest: req})
 			if err != nil {

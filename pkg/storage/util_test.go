@@ -30,6 +30,7 @@ import (
 	loki_util "github.com/grafana/loki/v3/pkg/util"
 	"github.com/grafana/loki/v3/pkg/util/constants"
 	util_log "github.com/grafana/loki/v3/pkg/util/log"
+	"github.com/grafana/loki/v3/pkg/validation"
 )
 
 var (
@@ -38,6 +39,19 @@ var (
 )
 
 var from = time.Unix(0, time.Millisecond.Nanoseconds())
+
+// noStoreLimits disables every store limit. Tests that build a LokiStore
+// literal rather than calling NewStore still need it: the read path consults
+// limits before it resolves chunks.
+var noStoreLimits = mustStoreLimits(validation.Limits{})
+
+func mustStoreLimits(limits validation.Limits) StoreLimits {
+	overrides, err := validation.NewOverrides(limits, nil)
+	if err != nil {
+		panic(err)
+	}
+	return overrides
+}
 
 func assertStream(t *testing.T, expected, actual []logproto.Stream) {
 	if len(expected) != len(actual) {
