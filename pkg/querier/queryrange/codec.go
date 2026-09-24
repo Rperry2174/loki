@@ -1695,19 +1695,18 @@ func mergeOrderedNonOverlappingStreams(resps []*LokiResponse, limit uint32, dire
 
 	// we want the min(limit, num_entries)
 	for i := 0; i < int(limit) && pq.Len() > 0; i++ {
-		// grab the next entry off the queue. This will be a stream (to preserve labels) with one entry.
-		next := heap.Pop(pq).(*logproto.Stream)
+		// grab the next entry off the queue, along with the labels it belongs to.
+		labels, entry := pq.popEntry()
 
-		s, ok := resultDict[next.Labels]
+		s, ok := resultDict[labels]
 		if !ok {
 			s = &logproto.Stream{
-				Labels:  next.Labels,
+				Labels:  labels,
 				Entries: make([]logproto.Entry, 0, int(limit)/len(keys)), // allocation hack -- assume uniform distribution across labels
 			}
-			resultDict[next.Labels] = s
+			resultDict[labels] = s
 		}
-		// TODO: make allocation friendly
-		s.Entries = append(s.Entries, next.Entries...)
+		s.Entries = append(s.Entries, entry)
 	}
 
 	results := make([]logproto.Stream, 0, len(resultDict))

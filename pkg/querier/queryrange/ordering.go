@@ -78,21 +78,33 @@ func (pq *priorityqueue) Push(x interface{}) {
 	pq.streams = append(pq.streams, stream)
 }
 
-// Pop returns a stream with one entry. It pops the first entry of the first stream
-// then re-pushes the remainder of that stream if non-empty back into the queue
+// Pop implements heap.Interface and removes the exhausted stream at the end of
+// the queue. Callers draining entries in order should use popEntry instead.
 func (pq *priorityqueue) Pop() interface{} {
 	n := pq.Len()
 	stream := pq.streams[n-1]
 	pq.streams[n-1] = nil // avoid memory leak
 	pq.streams = pq.streams[:n-1]
+	return stream
+}
 
-	// put the rest of the stream back into the priorityqueue if more entries exist
-	if len(stream.Entries) > 1 {
-		remaining := *stream
-		remaining.Entries = remaining.Entries[1:]
-		heap.Push(pq, &remaining)
+// popEntry returns the next entry in direction order along with the labels of
+// the stream it came from. It must not be called on an empty queue.
+//
+// The head stream is advanced in place and the heap repaired, so draining the
+// queue does not allocate. Re-pushing a copy of the head instead would cost one
+// logproto.Stream per entry returned, i.e. one short-lived allocation for every
+// log line in the response.
+func (pq *priorityqueue) popEntry() (string, logproto.Entry) {
+	head := pq.streams[0]
+	labels, entry := head.Labels, head.Entries[0]
+
+	if len(head.Entries) > 1 {
+		head.Entries = head.Entries[1:]
+		heap.Fix(pq, 0)
+	} else {
+		heap.Pop(pq)
 	}
 
-	stream.Entries = stream.Entries[:1]
-	return stream
+	return labels, entry
 }
