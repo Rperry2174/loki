@@ -432,7 +432,7 @@ The estimated data volume for the query exceeds the configured limit. This is de
 
 **Cause:**
 
-The number of chunks that the query would read exceeds the configured limit. This protects against queries that would scan excessive amounts of data and consume too much memory.
+The number of chunks that the query would read exceeds the configured limit. This protects against queries that would scan excessive amounts of data and consume too much memory. The limit applies to each query that reaches a querier, which is a subquery of the original request once the query frontend has split and sharded it.
 
 **Default configuration:**
 

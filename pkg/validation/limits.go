@@ -401,7 +401,7 @@ func (l *Limits) RegisterFlags(f *flag.FlagSet) {
 	_ = l.PerStreamRateLimitBurst.Set(strconv.Itoa(defaultPerStreamBurstLimit))
 	f.Var(&l.PerStreamRateLimitBurst, "ingester.per-stream-rate-limit-burst", "Maximum burst bytes per stream, also expressible in human readable forms (1MB, 256KB, etc). This is how far above the rate limit a stream can 'burst' before the stream is limited.")
 
-	f.IntVar(&l.MaxChunksPerQuery, "store.query-chunk-limit", 2e6, "Maximum number of chunks that can be fetched in a single query. Enforced on the querier when it resolves chunks from the store, before any of them are fetched. 0 to disable.")
+	f.IntVar(&l.MaxChunksPerQuery, "store.query-chunk-limit", 2e6, "Maximum number of chunks that can be fetched in a single query. Enforced on the querier before any chunk is fetched, and applied per query reaching a querier, so after the query-frontend has split and sharded the original query. 0 to disable.")
 
 	_ = l.MaxQueryLength.Set("721h")
 	f.Var(&l.MaxQueryLength, "store.max-query-length", "The limit to length of chunk store queries. 0 to disable.")
