@@ -1,0 +1,85 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Loki merge benchmark</title>
+<style>
+  :root { --bg:#f7f7f4; --fg:#26251e; --card:#f2f1ed; --line:#e1e0db; --accent:#f54e00; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:40px; background:var(--bg); color:var(--fg);
+         font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  h1 { font-size:26px; margin:0 0 6px; letter-spacing:-0.02em; }
+  .sub { color:rgba(38,37,30,.6); margin:0 0 28px; font-size:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+           padding:22px 24px; margin-bottom:22px; }
+  h2 { font-size:15px; text-transform:uppercase; letter-spacing:.07em;
+        color:rgba(38,37,30,.55); margin:0 0 18px; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th,td { text-align:right; padding:9px 10px; border-bottom:1px solid var(--line); }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+        color:rgba(38,37,30,.55); font-weight:600; }
+  th .unit { display:block; font-size:10px; text-transform:none; letter-spacing:0; opacity:.7; }
+  thead tr:last-child th { font-size:10px; }
+  td.name, th:first-child { text-align:left; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+                             font-size:12px; width:330px; white-space:normal; word-break:break-word; }
+  .tag { display:inline-block; margin-left:7px; padding:0 6px; border-radius:20px;
+          background:#e1e0db; color:rgba(38,37,30,.6); font-size:9.5px; font-weight:600;
+          text-transform:uppercase; letter-spacing:.05em; vertical-align:1px;
+          font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
+  td.after { font-weight:600; }
+  .win { color:#1a7f37; font-weight:700; }
+  .loss { color:#b42318; font-weight:700; }
+  .flat { color:rgba(38,37,30,.5); }
+  tbody tr:last-child td { border-bottom:none; }
+  .crow { display:grid; grid-template-columns:330px 1fr 290px; gap:18px;
+           align-items:center; margin-bottom:14px; }
+  .clabel { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px;
+             word-break:break-word; }
+  .bar-track { background:#e6e5e0; border-radius:4px; height:13px; margin:3px 0; overflow:hidden; }
+  .bar { height:100%; border-radius:4px; }
+  .cval { font-size:12.5px; font-variant-numeric:tabular-nums; }
+  .pill { display:inline-block; background:var(--accent); color:#fff; border-radius:20px;
+           padding:1px 9px; font-size:11px; font-weight:600; margin-left:4px; }
+  .legend { font-size:12px; color:rgba(38,37,30,.6); margin-bottom:16px; }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:2px;
+         margin:0 5px 0 14px; vertical-align:middle; }
+  .foot { font-size:12px; color:rgba(38,37,30,.55); }
+  code { background:#e6e5e0; padding:1px 5px; border-radius:4px; font-size:12px; }
+</style></head>
+<body><div class="wrap">
+  <h1>Query read path &mdash; response merge allocations</h1>
+  <p class="sub"><code>pkg/querier/queryrange</code> &middot; median of 8 runs, <code>-benchtime 50x -cpu 4</code>
+     &middot; before = <code>main</code>, after = allocation-free <code>priorityqueue.popEntry</code></p>
+
+  <div class="card">
+    <h2>Allocations per merge</h2>
+    <div class="legend">
+      <span class="sw" style="background:#9aa0a6"></span>before
+      <span class="sw" style="background:#f54e00"></span>after
+    </div>
+    <div class="crow"><div class="clabel">mergeOrderedNonOverlappingStreams (limited)</div><div class="cbars"><div class="bar-track"><div class="bar" style="width:100.00%;background:#9aa0a6"></div></div><div class="bar-track"><div class="bar" style="width:1.21%;background:#f54e00"></div></div></div><div class="cval">101,128 &rarr; <b>1,228</b> <span class="pill">1.2% of baseline</span></div></div>
+<div class="crow"><div class="clabel">splitHeavy limit=10000</div><div class="cbars"><div class="bar-track"><div class="bar" style="width:100.00%;background:#9aa0a6"></div></div><div class="bar-track"><div class="bar" style="width:4.53%;background:#f54e00"></div></div></div><div class="cval">10,474 &rarr; <b>474</b> <span class="pill">4.5% of baseline</span></div></div>
+<div class="crow"><div class="clabel">splitHeavy limit=1000</div><div class="cbars"><div class="bar-track"><div class="bar" style="width:100.00%;background:#9aa0a6"></div></div><div class="bar-track"><div class="bar" style="width:27.22%;background:#f54e00"></div></div></div><div class="cval">1,374 &rarr; <b>374</b> <span class="pill">27.2% of baseline</span></div></div>
+<div class="crow"><div class="clabel">splitHeavy limit=100</div><div class="cbars"><div class="bar-track"><div class="bar" style="width:100.00%;background:#9aa0a6"></div></div><div class="bar-track"><div class="bar" style="width:78.90%;background:#f54e00"></div></div></div><div class="cval">474 &rarr; <b>374</b> <span class="pill">78.9% of baseline</span></div></div>
+<div class="crow"><div class="clabel">mergeStreams (unlimited)<span class="tag">control</span></div><div class="cbars"><div class="bar-track"><div class="bar" style="width:100.00%;background:#9aa0a6"></div></div><div class="bar-track"><div class="bar" style="width:100.00%;background:#f54e00"></div></div></div><div class="cval">1,341 &rarr; <b>1,341</b> <span class="pill">100.0% of baseline</span></div></div>
+<div class="crow"><div class="clabel">mergeStreams (limited)<span class="tag">control</span></div><div class="cbars"><div class="bar-track"><div class="bar" style="width:100.00%;background:#9aa0a6"></div></div><div class="bar-track"><div class="bar" style="width:100.00%;background:#f54e00"></div></div></div><div class="cval">1,341 &rarr; <b>1,341</b> <span class="pill">100.0% of baseline</span></div></div>
+<div class="crow"><div class="clabel">mergeOrderedNonOverlappingStreams (unlimited)<span class="tag">control</span></div><div class="cbars"><div class="bar-track"><div class="bar" style="width:100.00%;background:#9aa0a6"></div></div><div class="bar-track"><div class="bar" style="width:100.00%;background:#f54e00"></div></div></div><div class="cval">811 &rarr; <b>811</b> <span class="pill">100.0% of baseline</span></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Full comparison</h2>
+    <table>
+      <thead><tr><th>benchmark</th><th colspan="3">Allocations<span class="unit">allocs/op</span></th><th colspan="3">Bytes allocated<span class="unit">B/op</span></th><th colspan="3">Wall time<span class="unit">ns/op</span></th></tr><tr><th></th><th>before</th><th>after</th><th>&Delta;</th><th>before</th><th>after</th><th>&Delta;</th><th>before</th><th>after</th><th>&Delta;</th></tr></thead>
+      <tbody><tr><td class="name">mergeOrderedNonOverlappingStreams (limited)</td><td>101,128</td><td class="after">1,228</td><td class="win">-98.8%</td><td>34.25 MB</td><td class="after">29.67 MB</td><td class="win">-13.4%</td><td>14.05 ms</td><td class="after">11.63 ms</td><td class="win">-17.2%</td></tr>
+<tr><td class="name">splitHeavy limit=10000</td><td>10,474</td><td class="after">474</td><td class="win">-95.5%</td><td>2.54 MB</td><td class="after">2.08 MB</td><td class="win">-18.0%</td><td>1.28 ms</td><td class="after">979.4 µs</td><td class="win">-23.5%</td></tr>
+<tr><td class="name">splitHeavy limit=1000</td><td>1,374</td><td class="after">374</td><td class="win">-72.8%</td><td>455.71 KB</td><td class="after">408.84 KB</td><td class="win">-10.3%</td><td>180.5 µs</td><td class="after">156.0 µs</td><td class="win">-13.5%</td></tr>
+<tr><td class="name">splitHeavy limit=100</td><td>474</td><td class="after">374</td><td class="win">-21.1%</td><td>334.62 KB</td><td class="after">329.93 KB</td><td class="win">-1.4%</td><td>134.2 µs</td><td class="after">127.9 µs</td><td class="win">-4.7%</td></tr>
+<tr><td class="name">mergeStreams (unlimited)<span class="tag">control</span></td><td>1,341</td><td class="after">1,341</td><td class="flat">0.0%</td><td>80.36 MB</td><td class="after">80.36 MB</td><td class="flat">+0.0%</td><td>40.13 ms</td><td class="after">41.11 ms</td><td class="loss">+2.5%</td></tr>
+<tr><td class="name">mergeStreams (limited)<span class="tag">control</span></td><td>1,341</td><td class="after">1,341</td><td class="flat">0.0%</td><td>80.36 MB</td><td class="after">80.36 MB</td><td class="flat">+0.0%</td><td>43.44 ms</td><td class="after">42.25 ms</td><td class="win">-2.7%</td></tr>
+<tr><td class="name">mergeOrderedNonOverlappingStreams (unlimited)<span class="tag">control</span></td><td>811</td><td class="after">811</td><td class="flat">0.0%</td><td>8.69 MB</td><td class="after">8.69 MB</td><td class="flat">0.0%</td><td>1.77 ms</td><td class="after">1.59 ms</td><td class="win">-9.9%</td></tr></tbody>
+    </table>
+  </div>
+
+  <p class="foot">The merge previously copied a <code>logproto.Stream</code> back onto the heap for every
+     entry it emitted &mdash; one short-lived allocation per log line returned. Draining the queue in place
+     removes that cost; output is unchanged and pinned by
+     <code>TestMergeOrderedNonOverlappingStreams</code>.</p>
+</div></body></html>
