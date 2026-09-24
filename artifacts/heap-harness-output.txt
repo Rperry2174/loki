@@ -1,0 +1,10 @@
+=== RUN   TestQuerierHeapUnderChunkLimit
+=== RUN   TestQuerierHeapUnderChunkLimit/before:_max_chunks_per_query_unenforced,_20000_chunks_matched
+    oom_harness_test.go:73: peak heap over baseline: 1435.8 MiB | entries read:  1000000 | elapsed: 9m0.712s | outcome: served
+=== RUN   TestQuerierHeapUnderChunkLimit/after:__max_chunks_per_query=2000,_20000_chunks_matched
+    oom_harness_test.go:73: peak heap over baseline:    8.9 MiB | entries read:        0 | elapsed:     19ms | outcome: rejected: the query hit the max number of chunks limit (limit: 2000 chunks, matched: 20000 chunks); consider adding more specific stream selectors or reducing the query time range
+--- PASS: TestQuerierHeapUnderChunkLimit (541.58s)
+    --- PASS: TestQuerierHeapUnderChunkLimit/before:_max_chunks_per_query_unenforced,_20000_chunks_matched (540.72s)
+    --- PASS: TestQuerierHeapUnderChunkLimit/after:__max_chunks_per_query=2000,_20000_chunks_matched (0.06s)
+PASS
+ok  	github.com/grafana/loki/v3/pkg/storage	541.649s

@@ -1,0 +1,116 @@
+package storage
+
+import (
+	"context"
+	"fmt"
+	"runtime"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/grafana/dskit/user"
+	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/loki/v3/pkg/chunkenc"
+	"github.com/grafana/loki/v3/pkg/logql"
+	"github.com/grafana/loki/v3/pkg/validation"
+)
+
+// TestQuerierHeapUnderChunkLimit measures the peak heap a single querier
+// goroutine reaches while serving one query, with max_chunks_per_query unset
+// (the behaviour before this change, since nothing read the setting) and set.
+//
+// Run with:
+//
+//	go test ./pkg/storage/ -run TestQuerierHeapUnderChunkLimit -v -count=1
+func TestQuerierHeapUnderChunkLimit(t *testing.T) {
+	const (
+		streamCount = 20000
+		entryCount  = 50
+		chunkLimit  = 2000
+	)
+
+	fixture := newOverlappingStreams(streamCount, entryCount)
+	storeFixture := newMockChunkStore(chunkenc.ChunkFormatV3, chunkenc.UnorderedWithStructuredMetadataHeadBlockFmt, fixture)
+
+	for _, tt := range []struct {
+		name  string
+		limit int
+	}{
+		{name: fmt.Sprintf("before: max_chunks_per_query unenforced, %d chunks matched", streamCount), limit: 0},
+		{name: fmt.Sprintf("after:  max_chunks_per_query=%d, %d chunks matched", chunkLimit, streamCount), limit: chunkLimit},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &LokiStore{
+				Store:        storeFixture,
+				cfg:          Config{MaxChunkBatchSize: 50, MaxParallelGetChunk: 150},
+				chunkMetrics: NilMetrics,
+				limits:       mustStoreLimits(validation.Limits{MaxChunksPerQuery: tt.limit}),
+			}
+			ctx := user.InjectOrgID(context.Background(), "test-user")
+			req := newQuery(`{foo="bar"}`, time.Unix(0, 0), time.Unix(0, int64(entryCount+1)), nil, nil)
+			req.Limit = 1e9
+
+			stop, peak := samplePeakHeap()
+
+			start := time.Now()
+			it, err := s.SelectLogs(ctx, logql.SelectLogParams{QueryRequest: req})
+			var entries int
+			if err == nil {
+				for it.Next() {
+					entries++
+				}
+				require.NoError(t, it.Close())
+			}
+			elapsed := time.Since(start)
+
+			overBaseline := stop()
+
+			outcome := "served"
+			if err != nil {
+				outcome = "rejected: " + err.Error()
+			}
+			t.Logf("peak heap over baseline: %6.1f MiB | entries read: %8d | elapsed: %8s | outcome: %s",
+				float64(overBaseline)/(1<<20), entries, elapsed.Round(time.Millisecond), outcome)
+			_ = peak
+		})
+	}
+}
+
+// samplePeakHeap polls the heap until the returned stop function is called,
+// which reports the peak observed above the baseline taken at the start.
+func samplePeakHeap() (stop func() uint64, peak *atomic.Uint64) {
+	runtime.GC()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	baseline := ms.HeapAlloc
+
+	peak = &atomic.Uint64{}
+	done := make(chan struct{})
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			var ms runtime.MemStats
+			runtime.ReadMemStats(&ms)
+			if ms.HeapAlloc > peak.Load() {
+				peak.Store(ms.HeapAlloc)
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}()
+
+	return func() uint64 {
+		close(done)
+		<-finished
+		if peak.Load() < baseline {
+			return 0
+		}
+		return peak.Load() - baseline
+	}, peak
+}
